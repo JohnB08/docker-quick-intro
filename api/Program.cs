@@ -1,4 +1,4 @@
-using api.AppDbContext;
+using api.Context;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +22,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        await context.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Something went wrong migrating the database");
+    }
+}
+
+    app.UseHttpsRedirection();
 
 app.MapGet("RegisterEndpointCalled", async (AppDbContext context, ILogger<Program> logger) =>
 {

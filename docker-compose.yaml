@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    restart: unless-stopped
+    networks:
+      - app-network
+  sqlServer:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlServer
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=AVerySecret&SafePassword
+    volumes:
+      - sqlServerData:/var/opt/mssql
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  sqlServerData:
+
+networks:
+  app-network:
+    driver: bridge
+
+  
