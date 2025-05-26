@@ -11,7 +11,7 @@ builder.Services.AddDbContext<AppDbContext>(
     options => options.UseSqlServer(builder.Configuration.GetConnectionString("Default"))
 );
 builder.Services.AddLogging();
-
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -45,6 +45,8 @@ app.MapGet("RegisterEndpointCalled", async (AppDbContext context, ILogger<Progra
     await context.SaveChangesAsync();
     logger.LogInformation("DateTime Added to database");
 });
+
+app.MapHealthChecks("health");
 
 app.Run();
 

@@ -8,6 +8,12 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     networks:
       - app-network
   sqlServer:
@@ -21,6 +27,12 @@ services:
     volumes:
       - sqlServerData:/var/opt/mssql
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'AVerySecret&SafePassword' -Q 'SELECT 1' || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     networks:
       - app-network
 
