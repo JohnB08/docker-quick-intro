@@ -1,44 +1,81 @@
+
+# I denne filen orchestrerer vi, eller composer et sett med containere som skal jobbe sammen for å representere hele applikasjonen vår
+# Vi definerer hvordan disse skal kjøre, hva internt docker nettverk de skal snakke med hverandre på, og hvilke (om de trenger) persistent lagervolum de har tilgang til.
+
 services:
+  # Det første vi definerer er vår API, vi har allerede definert et bilde for apiet vårt (vår dockerfile), så her forteller vi docker å hente den filen.
   api:
+    #Vi definerer at hvis vi docker compose skal kjøre et build step, så må den først hente bildeinstruksjoner fra vår dockerfil, så følge instruksjonene der, for å bygge vår kontainer.
     build:
+      #Her forteller vi docker hvor den finner dockerfilen.
+      #Context definerer relativ path til folderen som inneholder dockerfilen
       context: .
+      #Her definerer vi navnet på dockerfilen
       dockerfile: dockerfile
+    #Her mapper vi den interne porten til docker containeren til en fysisk port på maskinen.
+    #Dette lar oss accesse vår api via http://localhost:5000
+    #Legg merke til formatet Host:Container
     ports:
       - "5000:8080"
+    #Under environment kan vi legge til environmentvariabler tilgjengelige i vår applikasjon.
+    #I vårt tilfellet forteller vi bare containeren vår at environmentet til aspnetcore runtimen skal behandles som Development.
+    #Da vil programmet vårt bruke appsettings.Development.json filen som hovedkonfigurasjonsfil, isteden for standard appsettings.json.
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+
+    #Her lager vi en regel for restarts. Det vil si hvis noe går galt vil containeren restartes.
     restart: unless-stopped
+    #Her lager vi en liten healthcheck som skal pinge apiet sitt healthcheck endepunkt, for å se om applikasjonen kjører.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 1m30s
       timeout: 30s
       retries: 5
       start_period: 30s
+    #Her definerer vi hvilke docker-nettverk docker skal koble containeren til. Hvis vi ikke definerer et custom netverk, vil likevell docker sitte opp et nettverk for containerene i compose filen.
     networks:
       - app-network
+
+  # Her definerer vi en container som inneholder en mssql server.
   sqlServer:
+    # Her henter vi ned et ferdiglaget basebile, som vi også gjorde i dockerfilen.
     image: mcr.microsoft.com/mssql/server:2022-latest
+    # Vi kan om vi vil gi containeren vår et unikt navn
     container_name: sqlServer
+    # Vi definerer også hvilke porter sqlserveren skal være tilgjengelig over.
     ports:
       - "1433:1433"
+
+    # Vi passer inn noen environmentvariabler vi trenger for å starte vår applikasjon. 
     environment:
+      # At vi accepter end user licence agreement til mssql
       - ACCEPT_EULA=Y
+      # Og hva system administrator passordet skal være. Husk at dette bør best håndteres via en secret-manager.
       - SA_PASSWORD=AVerySecret&SafePassword
+    # Vi definerer så hvor vår sql server skal lagre persistent data. 
     volumes:
       - sqlServerData:/var/opt/mssql
+
+    # Som med vår api setter vi opp en metode for sql serveren vår å restarte hvis den krasjer.
     restart: unless-stopped
+
+    # Og vi lager en liten "healthcheck" som prøver å kjøre queryen SELECT 1 på serveren vår for å se om den er i livet.
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'AVerySecret&SafePassword' -Q 'SELECT 1' || exit 1"]
       interval: 1m30s
       timeout: 30s
       retries: 5
       start_period: 30s
+    # Vi definerer så hvilke custom nettverk containeren skal kobles opp mot.
     networks:
       - app-network
-
+#Her definerer vi et persistent volum som skal tilgjengeliggjøres, docker lager et volum sqlServerData som er tilgjengelig for containere som trenger det.
 volumes:
   sqlServerData:
 
+#Her definerer vi det custom nettverket docker skal sette opp, plus at nettverket skal bruke bridge mode. 
+#En liten neat ting med nettverket er at vi kan referere til containernavnet / servicenavnet for å fortelle andre nettverk hvordan de finner hverandre.
+#Legg merke til at Server= i connectionstringen i appsettings.Development refererer til sqlServer containeren som url.
 networks:
   app-network:
     driver: bridge
