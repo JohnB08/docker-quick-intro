@@ -12,7 +12,7 @@ FROM build AS publish
 RUN dotnet publish "api.csproj" -c Release -o /publish
 
 RUN addgroup --gid 1001 --system dotnet && \
-    adduser --uid 1001 --system --gid 1001 --shel /bin/false dotnet
+    adduser --uid 1001 --system --gid 1001 --shell /bin/false dotnet
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 COPY --from=publish --chown=dotnet:dotnet /publish .
